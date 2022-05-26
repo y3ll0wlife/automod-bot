@@ -11,6 +11,12 @@ config({ path: `${__dirname}/../src/.env` });
 
 const client = new Client({
 	intents: new Intents(3145728),
+	allowedMentions: {
+		parse: [],
+		repliedUser: false,
+		roles: [],
+		users: [],
+	},
 });
 
 client.once("ready", async () => {

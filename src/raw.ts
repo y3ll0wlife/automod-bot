@@ -5,10 +5,14 @@ import { get } from "./utils/database";
 
 export async function handleRaw(e: any, client: Client, db: Database) {
 	if (e.t !== "AUTO_MODERATION_ACTION_EXECUTION") return;
+	if (e.d.action.type != 2) return;
 
-	const channel = await client.channels.fetch(e.d.channel_id);
-	if (!channel?.isText()) return;
-	const message = await channel.messages.fetch(e.d.message_id);
+	const ruleChannel = client.channels.cache.get(e.d.action.metadata.channel_id) ?? (await client.channels.fetch(e.d.action.metadata.channel_id));
+	const channel = client.channels.cache.get(e.d.channel_id) ?? (await client.channels.fetch(e.d.channel_id));
+
+	if (!channel?.isText() || !ruleChannel?.isText()) return;
+	let message: any = await channel.messages.fetch(e.d.message_id);
+	if (message.size > 0) message = message.first();
 
 	const row = new MessageActionRow().addComponents(
 		new MessageButton().setCustomId(`timeout|${message.author.id}|${e.d.guild_id}`).setLabel("Timeout").setStyle("SECONDARY"),
@@ -31,10 +35,11 @@ export async function handleRaw(e: any, client: Client, db: Database) {
 
 	const strikeCount = userObj ? userObj.strikes : 1;
 	let punishment = "";
+	let content: string | undefined = undefined;
 	const guildObj: any = await get(db, "SELECT * FROM config WHERE guildId = ?", [e.d.guild_id]);
 	if (guildObj) {
 		const { timeout, kick, ban } = guildObj;
-		const member = await message.guild?.members.fetch(message.author.id);
+		const member = message.guild?.members.cache.get(message.author.id) ?? (await message.guild?.members.fetch(message.author.id));
 
 		if (strikeCount >= ban) {
 			punishment = "ban";
@@ -48,6 +53,11 @@ export async function handleRaw(e: any, client: Client, db: Database) {
 		} else if (strikeCount >= timeout) {
 			punishment = "timeout";
 			await member?.timeout(30 * 1000 * 60, `Automod punishment given to ${member.user.tag} (${member.user.id}), had more than ${timeout} strikes`);
+		}
+
+		if (punishment !== "") {
+			row.components?.map(c => (c.disabled = true));
+			content = `Punishment given to <@${member?.user?.id}> by **Automod**`;
 		}
 	}
 
@@ -64,7 +74,8 @@ export async function handleRaw(e: any, client: Client, db: Database) {
 			}\`\n**Matched content:** \`${e.d.matched_content}\`\n**Content:** \`${e.d.content}\``,
 		);
 
-	channel.send({
+	ruleChannel.send({
+		content,
 		embeds: [embed],
 		components: [row],
 	});

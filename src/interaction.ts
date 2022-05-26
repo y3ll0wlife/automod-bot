@@ -11,8 +11,8 @@ export async function handleInteraction(interaction: Interaction, client: Client
 
 	const [action, userId, guildId] = interaction.customId.split("|");
 
-	const guild = await client.guilds.fetch(guildId);
-	const member = await guild.members.fetch(userId);
+	const guild = client.guilds.cache.get(guildId) ?? (await client.guilds.fetch(guildId));
+	const member = guild.members.cache.get(userId) ?? (await guild.members.fetch(userId));
 
 	if (action === "timeout") {
 		if (!interaction.memberPermissions?.has("KICK_MEMBERS"))
@@ -45,6 +45,24 @@ export async function handleInteraction(interaction: Interaction, client: Client
 		});
 		await interaction.reply({ content: `Banned <@${userId}> by ${interaction.user.tag} (${interaction.user.id})` });
 	}
+	const channel = guild.channels.cache.get(interaction.channelId) ?? (await guild.channels.fetch(interaction.channelId));
+	if (!channel?.isText()) return;
+	const message = channel.messages.cache.get(interaction.message.id) ?? (await channel.messages.fetch(interaction.message.id));
+	message.edit({
+		content: `Punishment given to <@${userId}> by ${interaction.user.tag} (${interaction.user.id})`,
+		embeds: message.embeds,
+		components: message.components?.map(c => {
+			return {
+				type: c.type,
+				components: c.components.map((c2: any) => {
+					return {
+						...c2,
+						disabled: true,
+					};
+				}),
+			};
+		}),
+	});
 }
 async function handleInteractionCommand(interaction: CommandInteraction<CacheType>, client: Client, db: Database) {
 	if (interaction.commandName === "config") {
@@ -70,9 +88,13 @@ async function handleInteractionCommand(interaction: CommandInteraction<CacheTyp
 
 			db.run("UPDATE config SET timeout = ?, kick = ?, ban = ? WHERE guildId = ? ", [timeout, kick, ban, interaction.guildId]);
 		} else {
-			db.run("INSERT INTO config(guildId, timeout, kick, ban) VALUES (?, ?, ?, ?)", [interaction.guildId, 100, 100, 100]);
+			const timeout = interaction.options.data.find(v => v.name === "timeout")?.value ?? 100;
+			const kick = interaction.options.data.find(v => v.name === "kick")?.value ?? 100;
+			const ban = interaction.options.data.find(v => v.name === "ban")?.value ?? 100;
+
+			db.run("INSERT INTO config(guildId, timeout, kick, ban) VALUES (?, ?, ?, ?)", [interaction.guildId, timeout, kick, ban]);
 		}
 	}
 
-	await interaction.reply({ content: `There we go done with the configuration` });
+	await interaction.reply({ content: `Updated the configuration for your server` });
 }
