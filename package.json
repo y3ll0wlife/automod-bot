@@ -1,0 +1,23 @@
+{
+	"name": "automod-bot",
+	"version": "1.0.0",
+	"description": "Automate Discords own automod",
+	"main": "src/index.ts",
+	"scripts": {
+		"watch": "tsc -w",
+		"prestart": "tsc",
+		"start": "node build/index.js",
+		"nobuild": "node build/index.js",
+		"dev": "nodemon build/index.js --ignore ./files"
+	},
+	"dependencies": {
+		"axios": "^0.27.2",
+		"discord.js": "^13.7.0",
+		"dotenv": "^16.0.1",
+		"sqlite3": "^5.0.8"
+	},
+	"devDependencies": {
+		"@types/sqlite3": "^3.1.8",
+		"typescript": "^4.7.2"
+	}
+}

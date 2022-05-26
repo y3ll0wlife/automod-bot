@@ -1,0 +1,4 @@
+.env
+db.db
+/build
+/node_modules
