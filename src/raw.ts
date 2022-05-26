@@ -11,7 +11,7 @@ export async function handleRaw(e: any, client: Client, db: Database) {
 	const channel = client.channels.cache.get(e.d.channel_id) ?? (await client.channels.fetch(e.d.channel_id));
 
 	if (!channel?.isText() || !ruleChannel?.isText()) return;
-	let message: any = await channel.messages.fetch(e.d.message_id);
+	let message: any = await ruleChannel.messages.fetch(e.d.alert_system_message_id);
 	if (message.size > 0) message = message.first();
 
 	const row = new MessageActionRow().addComponents(
